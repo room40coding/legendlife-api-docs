@@ -309,7 +309,7 @@ Check if your desired product(s) can be decorated.
 - `skus` (array of strings): The SKUs of products to check.
 
 **Example Request:**  
-`GET https://api.legendlife.com.au/decorations/v1/canDecorate?skus=8001-BL.CW,4007-BL.BOR-S.M`
+`GET https://api.legendlife.com.au/v1/decorations/canDecorate?skus=8001-BL.CW,4007-BL.BOR-S.M`
 
 **Response:**  
 Returns a map of SKU to boolean indicating decorate-ability.
@@ -327,7 +327,7 @@ Get a list of decoration types (e.g., embroidery, printing) available for a spec
 - `sku` (string): The product SKU.
 
 **Example Request:**  
-`GET https://api.legendlife.com.au/decorations/v1/decorationTypes?sku=4007-BL.BOR-S.M`
+`GET https://api.legendlife.com.au/v1/decorations/decorationTypes?sku=4007-BL.BOR-S.M`
 
 **Response:**  
 Returns an array of decoration type objects `{ id, name, decorationPositionCount }`.
@@ -346,7 +346,7 @@ Find out which areas/positions can be decorated on the garment for the selected 
 - `decorationType` (integer): The ID of the chosen decoration type.
 
 **Example Request:**  
-`GET https://api.legendlife.com.au/decorations/v1/decorationPositions?sku=4007-BL.BOR-S.M&decorationType=1`
+`GET https://api.legendlife.com.au/v1/decorations/decorationPositions?sku=4007-BL.BOR-S.M&decorationType=1`
 
 **Response:**  
 Returns available positions (e.g., left chest, sleeve).
@@ -371,7 +371,7 @@ Get miscellaneous options (e.g., thread colors, stitch count) specific to SKU, d
 - `zAxisDecorationItem` (integer): Z-axis option item ID.
 
 **Example Request:**  
-`GET https://api.legendlife.com.au/decorations/v1/decorationOption?sku=4007-BL.BOR-S.M&decorationType=1&qty=100`
+`GET https://api.legendlife.com.au/v1/decorations/decorationOption?sku=4007-BL.BOR-S.M&decorationType=1&qty=100`
 
 > **Tip:**  
 > Request again with `decorationPosition` after selecting a position to see refined options.
@@ -394,7 +394,7 @@ Determine minimum and maximum logo dimensions for the selected SKU, decoration t
 - `decorationItem` (integer): Decoration option item ID.
 
 **Example Request:**  
-`GET https://api.legendlife.com.au/decorations/v1/logoSize?sku=8001-BL.CW&decorationType=1&decorationPosition=2&decorationItem=4`
+`GET https://api.legendlife.com.au/v1/decorations/logoSize?sku=8001-BL.CW&decorationType=1&decorationPosition=2&decorationItem=4`
 
 **Response:**  
 Returns min/max width, height, and diameter in millimeters.
@@ -418,7 +418,7 @@ Get the calculated price for the selected configuration and quantity.
 - `zAxisDecorationItem` (integer): Z-axis option item ID.
 
 **Example Request:**  
-`GET https://api.legendlife.com.au/decorations/v1/pricing?sku=8001-BL.CW&decorationType=1&decorationItem=5&qty=100`
+`GET https://api.legendlife.com.au/v1/decorations/pricing?sku=8001-BL.CW&decorationType=1&decorationItem=5&qty=100`
 
 **Response:**  
 Returns price per item, setup fees, minimum charge, and pricing quantity.
