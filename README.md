@@ -315,7 +315,7 @@ Check if your desired product(s) can be decorated.
 - `skus` (array of strings): The SKUs of products to check.
 
 **Example Request:**  
-`GET https://api.legendlife.com.au/v1/decorations/canDecorate?skus=8001-BL.CW,4007-BL.BOR-S.M`
+`GET https://api.legendlife.com.au/v1/decorations/canDecorate?skus[]=8001-BL.CW&skus[]=4007-BL.BOR-S.M`
 
 **Response:**  
 Returns a map of SKU to boolean indicating decorate-ability.
@@ -438,7 +438,7 @@ Returns price per item, setup fees, minimum charge, and pricing quantity.
 - **Get Information Sections:**  
   `GET /decorations/informationSections?sku=4007-BL.BOR-S.M&decorationType=1`
 - **Get Decoration Types for Multiple SKUs:**  
-  `GET /decorations/decorationTypesSkus?skus=8001-BL.CW,4007-BL.BOR-S.M`
+  `GET /decorations/decorationTypesSkus?skus[]=8001-BL.CW&skus[]=4007-BL.BOR-S.M`
 - **Get All Available Decoration Types**  
   `GET /decorations/allDecorationTypes`
 - **Get Decoration Pricing Breakpoints**
