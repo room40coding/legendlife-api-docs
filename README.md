@@ -46,6 +46,12 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
         "decorationTypes": [
           {
             "names": ["Embroidery"],
+            "nameAndIds": [
+              {
+                "id": 1,
+                "name": "Embroidery"
+              }
+            ],
             "decorationPositions": [
               { "names": ["Left Chest"],
                 "logoSizes": {
@@ -428,11 +434,15 @@ Returns price per item, setup fees, minimum charge, and pricing quantity.
 ## **Additional Endpoints**
 
 - **Get Minimum Order Quantity (MOQ) for a Decoration Type:**  
-  `GET /decorationMoq?sku=4007-BL.BOR-S.M&decorationType=1`
+  `GET /decorations/decorationMoq?sku=4007-BL.BOR-S.M&decorationType=1`
 - **Get Information Sections:**  
-  `GET /informationSections?sku=4007-BL.BOR-S.M&decorationType=1`
+  `GET /decorations/informationSections?sku=4007-BL.BOR-S.M&decorationType=1`
 - **Get Decoration Types for Multiple SKUs:**  
-  `GET /decorationTypesSkus?skus=8001-BL.CW,4007-BL.BOR-S.M`
+  `GET /decorations/decorationTypesSkus?skus=8001-BL.CW,4007-BL.BOR-S.M`
+- **Get All Available Decoration Types**  
+  `GET /decorations/allDecorationTypes`
+- **Get Decoration Pricing Breakpoints**
+  `GET /decorations/pricingBreakpoints`
 
 ---
 
