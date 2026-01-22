@@ -53,7 +53,8 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
               }
             ],
             "decorationPositions": [
-              { "names": ["Left Chest"],
+              {
+                "names": ["Left Chest"],
                 "logoSizes": {
                   "maxWidthMm": 100,
                   "maxHeightMm": 100,
@@ -101,6 +102,62 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
 
 - Decoration metadata (types, positions, logo size bounds) is included per style.
 - SKU-level blocks list colour/size combinations and images.
+
+### Umbrella Products: Pre-loaded Decoration Options
+
+For **umbrella products** (`class: "UMBRELLAS"`), the API includes additional decoration option data directly in the `/products` response. This eliminates the need to make separate calls to `/decorations/decorationOption` for these products.
+
+Each decoration type for an umbrella product may include:
+
+- `umbrellaDecorationOption` - The primary decoration option (e.g., "Number of Panels")
+- `umbrellaZAxisDecorationOption` - The secondary/z-axis decoration option (e.g., "Transfer Size")
+
+**Example umbrella product decoration type:**
+
+```json
+{
+  "decorationTypes": [
+    {
+      "names": ["Supacolour"],
+      "nameAndIds": [{ "id": 6, "name": "Supacolour" }],
+      "decorationPositions": [],
+      "umbrellaDecorationOption": {
+        "id": 19,
+        "name": "Number of Panels (Supacolour)",
+        "items": [
+          { "id": 70, "name": "1 Panel" },
+          { "id": 72, "name": "2 Panels" },
+          { "id": 73, "name": "4 Panels" },
+          { "id": 74, "name": "8 Panels" }
+        ]
+      },
+      "umbrellaZAxisDecorationOption": {
+        "id": 15,
+        "name": "Size (Umbrellas)",
+        "items": [
+          { "id": 55, "name": "150mm x 100mm" },
+          { "id": 56, "name": "210mm x 150mm" },
+          { "id": 57, "name": "300mm x 210mm" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**Using umbrella decoration options for pricing:**
+
+The item IDs from `umbrellaDecorationOption` and `umbrellaZAxisDecorationOption` can be passed directly to the `/decorations/pricing` endpoint:
+
+```bash
+curl "https://api.legendlife.com.au/v1/decorations/pricing?sku=2005-BL&decorationType=6&decorationItem=70&zAxisDecorationItem=55&qty=100"
+```
+
+In this example:
+- `decorationItem=70` corresponds to "1 Panel" from `umbrellaDecorationOption`
+- `zAxisDecorationItem=55` corresponds to "150mm x 100mm" from `umbrellaZAxisDecorationOption`
+
+> **Note:** These properties only appear for umbrella products. Non-umbrella products will not include `umbrellaDecorationOption` or `umbrellaZAxisDecorationOption` in the response.
 
 ---
 
@@ -461,6 +518,13 @@ Get your API key from the [Legend Life API Data Feed](https://www.legendlife.com
 4. **Get decoration options, refine choices** (`/decorationOption`)
 5. **Request logo size constraints** (`/logoSize`)
 6. **Request pricing** (`/pricing`)
+
+### Umbrella Products: Simplified Workflow
+
+For **umbrella products**, the `/products` endpoint already includes `umbrellaDecorationOption` and `umbrellaZAxisDecorationOption` data, allowing you to skip steps 3-4:
+
+1. **Fetch product data** (`/products?sku=2005`) — decoration options are included
+2. **Request pricing** (`/pricing`) — use the item IDs from the product response directly
 
 ---
 
