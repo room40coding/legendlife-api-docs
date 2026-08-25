@@ -303,6 +303,176 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricingAndStock?styleCode=4
 
 ---
 
+## Bulk Decoration Pricing
+
+### GET `/decorations/pricingGrid`
+
+Fetch the **entire online decoration price grid in one response**: every decoration grouping
+available for online ordering — with its decoration type, its selectable decoration items, its
+z-axis items where it has them, and its complete quantity-break price rows — plus a map of every
+style code to the groupings that style may be decorated with. Together they are everything needed
+to quote decoration offline.
+
+This replaces a per-`(sku, decorationType, decorationItem, zAxisDecorationItem)` fan-out over
+`/decorations/pricingBreakpoints`: pull the grid once, cache it, and price any decoration on any
+style at any quantity out of your own database. Only groupings that can actually be ordered online
+appear — precisely the set the per-SKU decoration endpoints serve — so the grid never offers a
+decoration method Legend Life will not take online. SYSPRO charge and stock codes are withheld.
+
+**Query params**
+
+None.
+
+**Example**
+
+```bash
+curl -H "Authorization: Bearer $API_KEY" \
+  "https://api.legendlife.com.au/v1/decorations/pricingGrid"
+```
+
+**200 Response (shape)**
+
+```json
+{
+  "hash": "9f2c1b7e…",
+  "generatedAt": "2026-08-25T02:14:07+00:00",
+  "groupings": [
+    {
+      "id": 12,
+      "name": "Embroidery - Left Chest",
+      "decorationType": { "id": 1, "name": "Embroidery" },
+      "items": [ { "id": 4, "name": "Up to 5,000 stitches" } ],
+      "zAxisItems": [],
+      "prices": [
+        {
+          "decorationItem": 4,
+          "zAxisDecorationItem": null,
+          "minQty": 1,
+          "maxQty": 24,
+          "each": 6.50,
+          "setupFee": 25.00,
+          "repeatSetupFee": 0.00,
+          "minimumCharge": 65.00,
+          "pricingQty": 1
+        }
+      ]
+    }
+  ],
+  "styles": {
+    "4171": [ { "grouping": 12, "moq": 10 } ]
+  }
+}
+```
+
+`groupings[].decorationType` is `null` on a grouping whose decoration type has since been retired.
+
+---
+
+#### Pricing a decoration from the grid
+
+Look the style code up in `styles`, take one of the groupings it lists, and read that grouping's
+`prices` rows for the `decorationItem` you are quoting — and for `zAxisDecorationItem`, which is
+`null` on rows for groupings that have no z-axis. Select the row whose quantity break contains your
+quantity:
+
+- `minQty` and `maxQty` are both **inclusive**, and `null` means unbounded on that side.
+- A row with **neither** bound set covers no quantity at all, which is how our own reads treat it.
+- Do not quote below the `moq` that `styles` gives for that style and grouping.
+
+**Within one grouping, where two rows for the same decoration item and z-axis item both cover your
+quantity, the lowest `each` applies.** The configuration permits overlapping quantity breaks and
+Legend Life's own per-SKU pricing read resolves an overlap that way.
+
+That rule is per grouping and **does not extend across them**. Where a style lists several groupings
+that could carry the same decoration, our per-SKU read prices against one of them rather than taking
+the cheapest of all, so do not assume the lowest `each` across groupings is the price we will
+charge. Ask `/decorations/pricing` for an exact SKU and quantity when a style's groupings overlap
+and the difference matters.
+
+**Price row fields**
+
+| Field | Meaning |
+| --- | --- |
+| `decorationItem` | Id of the decoration item this row prices; matches an entry in the grouping's `items`. |
+| `zAxisDecorationItem` | Id of the z-axis item, or `null` on groupings with no z-axis. |
+| `minQty` / `maxQty` | Inclusive quantity break bounds; `null` is unbounded on that side. |
+| `each` | Price of **one pricing unit** at this break. |
+| `pricingQty` | How many pricing units the row covers — `1` on an ordinary row (see below). |
+| `setupFee` | Setup charge configured on this price row, or `null` where none is set. Charged on top of the per-unit price. |
+| `repeatSetupFee` | Repeat setup charge configured on this price row, or `null` where none is set. |
+| `minimumCharge` | The least the decoration is charged at, however small the run; `0` where there is no minimum. |
+
+`each` is the price of one pricing unit and `pricingQty` is how many of those units the row covers —
+`1` on an ordinary row. **Above `1` it is the multiplier carried by a decoration item that decorates
+several places at once**, an umbrella's panels being the usual case: `each` is then the price per
+panel, and `each * pricingQty` is the price of that decoration item at that break, which is what
+decorating one product with it costs. The two are split so `each` stays comparable per unit.
+
+`minimumCharge` is the least the decoration will be charged at however small the run, and `0` where
+there is no minimum; quoting without it under-charges small orders.
+
+---
+
+#### The style map
+
+`styles` is a JSON **object keyed by style code** — `{}` when empty, never an array — whose values
+list `{ "grouping": <id>, "moq": <int> }` pairs. Every grouping id it names appears in `groupings`.
+
+The map is complete by construction, so **a style code absent from `styles` means there is no online
+decoration pricing for that style**: an answer, not missing data.
+
+It answers **per style, not per SKU**. Where one style's SKUs sit in several product classes, its
+list is the union across them and its `moq` the lowest that applies to any of them, so a colour or
+size of that style can in principle be narrower than the style's own entry. Quote from the grid;
+`/decorations/decorationTypes` and `/decorations/decorationMoq` answer for an exact SKU when you
+need one.
+
+---
+
+#### Keeping a cached copy in step
+
+`hash` is a content hash over the whole grid, **excluding `generatedAt`**, and is also returned as
+the `ETag` header. Send it back on the next pull as `If-None-Match` — quoted as the header gave it,
+or bare as the body published it — and an unchanged grid answers `304 Not Modified` with no body, so
+a nightly sync transfers nothing on a quiet day. A changed grid answers `200` with the new payload
+and a new `hash`.
+
+```bash
+# First pull: keep the hash
+curl -H "Authorization: Bearer $API_KEY" \
+  "https://api.legendlife.com.au/v1/decorations/pricingGrid"
+
+# Subsequent pulls: 304 Not Modified with no body when nothing changed
+curl -H "Authorization: Bearer $API_KEY" \
+     -H 'If-None-Match: "9f2c1b7e…"' \
+  "https://api.legendlife.com.au/v1/decorations/pricingGrid"
+```
+
+`generatedAt` is when the grid was **composed**, not when it was served: the payload is cached for
+up to an hour, so a `200` can carry a `generatedAt` older than the request. Saving a price or
+configuration change queues a flush of that cache, so a change normally reaches the next pull rather
+than waiting the hour out.
+
+One exception: the **product catalogue** itself is synced on its own schedule and does not queue that
+flush. A style newly added, withdrawn or reclassified can therefore take up to the full hour to
+appear in, or leave, `styles` — and until it does the `ETag` is unchanged, so a conditional pull
+answers `304`. Treat `styles` as accurate to within one hour of the product catalogue, and
+`groupings` as immediate.
+
+**Suggested integration**
+
+1. Pull the grid, store `hash`, and load `groupings` + `styles` into your own tables.
+2. Price locally from those tables.
+3. Re-pull nightly with `If-None-Match: "<hash>"`; on `304` do nothing, on `200` replace and store
+   the new `hash`.
+
+**Errors**
+
+- `401 Unauthenticated` — see [Errors](#errors). The endpoint is authenticated like every other
+  decoration endpoint and takes no parameters, so there is no `422` to handle.
+
+---
+
 ## Errors
 
 All endpoints use common error shapes.
@@ -500,6 +670,10 @@ Returns price per item, setup fees, minimum charge, and pricing quantity.
   `GET /decorations/allDecorationTypes`
 - **Get Decoration Pricing Breakpoints**
   `GET /decorations/pricingBreakpoints`
+- **Get the whole online decoration price grid in one call:**  
+  `GET /decorations/pricingGrid` — see [Bulk Decoration Pricing](#bulk-decoration-pricing). Pull it
+  once, cache it, and price any decoration on any style at any quantity locally instead of walking
+  Steps 1-6 per SKU.
 
 ---
 
@@ -525,6 +699,12 @@ For **umbrella products**, the `/products` endpoint already includes `umbrellaDe
 
 1. **Fetch product data** (`/products?sku=2005`) — decoration options are included
 2. **Request pricing** (`/pricing`) — use the item IDs from the product response directly
+
+### Bulk Integrators: Skip the Walk
+
+If you are importing pricing rather than quoting one configuration at a time, skip the whole
+workflow and pull `GET /decorations/pricingGrid` once — see
+[Bulk Decoration Pricing](#bulk-decoration-pricing).
 
 ---
 
