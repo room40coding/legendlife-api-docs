@@ -104,9 +104,9 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
 
 - Decoration metadata (types, positions, logo size bounds) is included per style.
 - SKU-level blocks list colour/size combinations and images.
-- `shortDescription` holds the product's full description and `description` holds its short summary. The same applies to `shortDescription` on the customer endpoints below.
+- `shortDescription` repeats the product's `name`, and `description` holds the product's full description. `shortDescription` on the customer endpoints below also repeats the name.
 
-> Long-standing behaviour: the two description fields have always been filled this way; this page previously implied the opposite.
+> Long-standing behaviour: `shortDescription` has always carried the product name rather than a separate summary.
 
 ### Umbrella Products: Pre-loaded Decoration Options
 
@@ -281,7 +281,7 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricing?styleCode=4171"
 - `9999997` on the last tier means "and above".
 - You receive one `qtyN`/`priceN` pair per tier, up to five. Pairs past your last tier are absent, not `null`. A price ladder with more than five tiers shows its first five, so its fifth `qtyN` is a real upper bound rather than `9999997`.
 
-> Long-standing behaviour: tiers have always been sent as upper bounds; this page previously described them as lower bounds.
+> Long-standing behaviour: tiers have always been sent as upper bounds; the examples on this page previously showed lower bounds.
 
 ---
 
