@@ -3,7 +3,7 @@
 ## Base URL & Auth
 
 - **Base URL:** `https://api.legendlife.com.au/v1/`
-- **Auth:** API key from your Legend Life account → *Integrations → API Data Feed*. Include it in requests as per your account instructions.
+- **Auth:** API key from your Legend Life account → *Resources › Business Support › Data & Integration*. Include it in requests as per your account instructions.
 
 > The examples below omit auth headers for brevity.
 
@@ -19,7 +19,9 @@ Fetches public base products. Supports pagination and optional SKU/style filteri
 
 - `sku` *(string, optional)*: Provide a style code **or** a single SKU to filter.
 - `page` *(int, optional)*: Page number (≥ 1).
-- `pageSize` *(int, optional)*: Page size (1–100; default 20).
+- `pageSize` *(int, optional)*: Page size (1–100; default 10).
+
+> Long-standing behaviour: the default page size has always been 10; this page previously said 20.
 
 **Example**
 
@@ -102,6 +104,9 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
 
 - Decoration metadata (types, positions, logo size bounds) is included per style.
 - SKU-level blocks list colour/size combinations and images.
+- `shortDescription` holds the product's full description and `description` holds its short summary. The same applies to `shortDescription` on the customer endpoints below.
+
+> Long-standing behaviour: the two description fields have always been filled this way; this page previously implied the opposite.
 
 ### Umbrella Products: Pre-loaded Decoration Options
 
@@ -260,15 +265,23 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricing?styleCode=4171"
     "shortDescription": "...",
     "rrpPrice": 129.9,
     "pricing": {
-      "qty1": 1,   "price1": 120.00,
-      "qty2": 10,  "price2": 115.00,
-      "qty3": 50,  "price3": 110.00,
-      "qty4": 100, "price4": 105.00,
-      "qty5": 250, "price5": 99.00
+      "qty1": 9,       "price1": 120.00,
+      "qty2": 49,      "price2": 115.00,
+      "qty3": 99,      "price3": 110.00,
+      "qty4": 249,     "price4": 105.00,
+      "qty5": 9999997, "price5": 99.00
     }
   }
 }
 ```
+
+**Reading the price tiers**
+
+- Each `qtyN` is the **highest** quantity at which `priceN` applies. The tier starts one above the previous tier's `qtyN` (the first tier starts at 1). In the example, 1–9 units cost 120.00, 10–49 cost 115.00, and so on.
+- `9999997` on the last tier means "and above".
+- You receive one `qtyN`/`priceN` pair per tier, up to five. Pairs past your last tier are absent, not `null`. A price ladder with more than five tiers shows its first five, so its fifth `qtyN` is a real upper bound rather than `9999997`.
+
+> Long-standing behaviour: tiers have always been sent as upper bounds; this page previously described them as lower bounds.
 
 ---
 
@@ -295,7 +308,7 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricingAndStock?styleCode=4
     "name": "Rainier Softshell Jacket",
     "shortDescription": "...",
     "rrpPrice": 129.9,
-    "pricing": { "qty1": 1, "price1": 120.00, "qty2": 10, "price2": 115.00 },
+    "pricing": { "qty1": 9, "price1": 120.00, "qty2": 9999997, "price2": 115.00 },
     "stock": [ { "sku": "4171-BL.S", "locations": [ {"name":"QLD DC","stockLevel":"25"} ] } ]
   }
 }
@@ -480,23 +493,45 @@ All endpoints use common error shapes.
 **401 Unauthenticated**
 
 ```json
-{ "message": "Unauthenticated" }
+{ "message": "Unauthenticated." }
 ```
+
+> Long-standing behaviour: the message has always ended with a full stop; this page previously left it out.
 
 **403 Authorization error**
 
+When your API key does not carry access to these endpoints:
+
 ```json
-{ "message": "Unauthorized" }
+{ "message": "Invalid ability provided." }
 ```
+
+When your account does not have access to pricing (`/customer/stylePricing` and `/customer/stylePricingAndStock` only):
+
+```json
+{ "message": "You do not have access to the pricing API." }
+```
+
+> Long-standing behaviour: these are the bodies the API has always returned; this page previously showed `Unauthorized`.
 
 **422 Validation error**
 
+When a parameter is missing or invalid, `message` repeats the first error, followed by a count when there are more:
+
 ```json
 {
-  "message": "The given data was invalid.",
-  "errors": { "styleCode": ["The styleCode field is required."] }
+  "message": "The style code field is required.",
+  "errors": { "styleCode": ["The style code field is required."] }
 }
 ```
+
+When the SKU or style code you sent does not exist, or you sent a SKU where a style code is expected, the body carries only `message`:
+
+```json
+{ "message": "4171X is not a valid Style Code. Please check the Style Code and try again." }
+```
+
+> Long-standing behaviour: these are the bodies the API has always returned; this page previously showed a generic "The given data was invalid." message.
 
 ---
 
@@ -508,21 +543,6 @@ All endpoints use common error shapes.
   ```
 - **Pagination**: `/products` returns `currentPage`, `lastPage`, `perPage`, `total`.
 - **RRP vs customer pricing**: `rrpPrice` is included alongside per-customer tiered pricing in style calls.
-
----
-
-## Legacy SOAP → REST mapping (for reference)
-
-Use this if you’re migrating from the SOAP v2.1 documentation.
-
-| SOAP (v2.1)                                         | REST (this README)                               |
-| --------------------------------------------------- | ------------------------------------------------ |
-| Public Product List `epicentre_products.publiclist` | `GET /products`                                  |
-| Customer Specific Product Stock                     | `GET /customer/productStock` (per SKU)           |
-| Customer Specific Style Pricing                     | `GET /customer/stylePricing` (per style)         |
-| —                                                   | `GET /customer/styleStock` (style stock per SKU) |
-| —                                                   | `GET /customer/stylePricingAndStock` (combined)  |
-
 
 
 # Legend Life Decoration API Workflow Documentation
@@ -559,11 +579,16 @@ Get a list of decoration types (e.g., embroidery, printing) available for a spec
 **Required Parameter:**  
 - `sku` (string): The product SKU.
 
+**Optional Parameter:**  
+- `withPositions` (`true`, `false`, `1` or `0`): Include `decorationPositionCount`, the number of positions available for each decoration type. The count is included whenever the parameter is sent, whatever its value; leave it out to omit the count.
+
 **Example Request:**  
-`GET https://api.legendlife.com.au/v1/decorations/decorationTypes?sku=4007-BL.BOR-S.M`
+`GET https://api.legendlife.com.au/v1/decorations/decorationTypes?sku=4007-BL.BOR-S.M&withPositions=true`
 
 **Response:**  
-Returns an array of decoration type objects `{ id, name, decorationPositionCount }`.
+Returns an array of decoration type objects `{ id, name }`, or `{ id, name, decorationPositionCount }` when `withPositions` is sent.
+
+> Long-standing behaviour: `decorationPositionCount` has always depended on `withPositions`; this page previously showed it on every response.
 
 ---
 
@@ -680,7 +705,7 @@ Returns price per item, setup fees, minimum charge, and pricing quantity.
 ## **Authentication**
 
 All endpoints require authentication.  
-Get your API key from the [Legend Life API Data Feed](https://www.legendlife.com.au/integrations/index/) in your account.
+Get your API key from the [Data & Integration](https://www.legendlife.com.au/resources/business-support/data-integration) page under Resources › Business Support.
 
 ---
 
@@ -719,5 +744,5 @@ workflow and pull `GET /decorations/pricingGrid` once — see
 
 ## **References**
 
-- [Legend Life API Data Feed](https://www.legendlife.com.au/integrations/index/)
+- [Legend Life Data & Integration](https://www.legendlife.com.au/resources/business-support/data-integration)
 - [Legend Life Main Site](https://www.legendlife.com.au/)
