@@ -3,7 +3,7 @@
 ## Base URL & Auth
 
 - **Base URL:** `https://api.legendlife.com.au/v1/`
-- **Auth:** API key from your Legend Life account → *Integrations → API Data Feed*. Include it in requests as per your account instructions.
+- **Auth:** API key from your Legend Life account → *Resources › Business Support › Data & Integration*. Include it in requests as per your account instructions.
 
 > The examples below omit auth headers for brevity.
 
@@ -19,7 +19,9 @@ Fetches public base products. Supports pagination and optional SKU/style filteri
 
 - `sku` *(string, optional)*: Provide a style code **or** a single SKU to filter.
 - `page` *(int, optional)*: Page number (≥ 1).
-- `pageSize` *(int, optional)*: Page size (1–100; default 20).
+- `pageSize` *(int, optional)*: Page size (1–100; default 10).
+
+> Long-standing behaviour: the default page size has always been 10; this page previously said 20.
 
 **Example**
 
@@ -35,7 +37,7 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
     {
       "styleCode": "4171",
       "name": "Rainier Softshell Jacket",
-      "shortDescription": "...",
+      "shortDescription": "Rainier Softshell Jacket",
       "description": "...",
       "class": "APPAREL",
       "sizesAvailable": ["S","M","L"],
@@ -79,9 +81,9 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
       "url": "https://www.legendlife.com.au/...",
       "skus": [
         {
-          "sku": "4171-BL.S",
-          "name": "...",
-          "shortDescription": "...",
+          "sku": "4171-BL-S",
+          "name": "Rainier Softshell Jacket",
+          "shortDescription": "Rainier Softshell Jacket",
           "description": "...",
           "searchColours": ["Black"],
           "colours": ["Black"],
@@ -102,6 +104,9 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
 
 - Decoration metadata (types, positions, logo size bounds) is included per style.
 - SKU-level blocks list colour/size combinations and images.
+- `shortDescription` repeats the product's `name`, and `description` holds the product's full description. `shortDescription` on the customer endpoints below also repeats the name.
+
+> Long-standing behaviour: `shortDescription` has always carried the product name rather than a separate summary.
 
 ### Umbrella Products: Pre-loaded Decoration Options
 
@@ -171,12 +176,12 @@ Fetch **stock at locations** for a **single SKU**.
 
 **Query params**
 
-- `sku` *(string, required)*: e.g. `4171-BL`
+- `sku` *(string, required)*: e.g. `4171-BL-S`
 
 **Example**
 
 ```bash
-curl "https://api.legendlife.com.au/v1/customer/productStock?sku=4171-BL"
+curl "https://api.legendlife.com.au/v1/customer/productStock?sku=4171-BL-S"
 ```
 
 **200 Response (shape)**
@@ -184,16 +189,24 @@ curl "https://api.legendlife.com.au/v1/customer/productStock?sku=4171-BL"
 ```json
 {
   "data": {
-    "sku": "4171-BL",
-    "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "sku": "4171-BL-S",
+    "name": "4171-BL-S - Rainier Softshell Jacket (Black) (S)",
+    "shortDescription": "4171-BL-S - Rainier Softshell Jacket (Black) (S)",
     "stock": [
-      { "location": "QLD DC", "qty": "120" },
-      { "location": "NSW DC", "qty": "45" }
+      { "location": "Stock Level - BNE", "qty": "120" },
+      { "location": "Stock Level - MEL", "qty": "45" },
+      { "location": "Stock Level - More Due", "qty": "Early December" },
+      { "location": "Stock Level - Total", "qty": "165" }
     ]
   }
 }
 ```
+
+**Reading the stock columns**
+
+- Every figure is a string. The columns differ from product to product: a product lists only the locations it is held at, so do not expect a fixed set.
+- `Total` is always present. A due column (`More Due` here, `More Stock Due` on the style endpoints below) appears on some products and carries a period such as `Early December`, or `-` when nothing is due.
+- On the style endpoints the same columns arrive as `name` / `stockLevel` without the `Stock Level - ` prefix, and `stockLevel` can be `null`.
 
 ---
 
@@ -218,16 +231,26 @@ curl "https://api.legendlife.com.au/v1/customer/styleStock?styleCode=4171"
   "data": {
     "styleCode": "4171",
     "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "shortDescription": "Rainier Softshell Jacket",
     "rrpPrice": 129.9,
     "stock": [
       {
-        "sku": "4171-BL.S",
-        "locations": [ {"name": "QLD DC", "stockLevel": "25"} ]
+        "sku": "4171-BL-S",
+        "locations": [
+          {"name": "BNE", "stockLevel": "120"},
+          {"name": "MEL", "stockLevel": "45"},
+          {"name": "More Stock Due", "stockLevel": "Early December"},
+          {"name": "Total", "stockLevel": "165"}
+        ]
       },
       {
-        "sku": "4171-BL.M",
-        "locations": [ {"name": "QLD DC", "stockLevel": "30"} ]
+        "sku": "4171-BL-M",
+        "locations": [
+          {"name": "BNE", "stockLevel": "30"},
+          {"name": "MEL", "stockLevel": "0"},
+          {"name": "More Stock Due", "stockLevel": "-"},
+          {"name": "Total", "stockLevel": "30"}
+        ]
       }
     ]
   }
@@ -257,18 +280,26 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricing?styleCode=4171"
   "data": {
     "styleCode": "4171",
     "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "shortDescription": "Rainier Softshell Jacket",
     "rrpPrice": 129.9,
     "pricing": {
-      "qty1": 1,   "price1": 120.00,
-      "qty2": 10,  "price2": 115.00,
-      "qty3": 50,  "price3": 110.00,
-      "qty4": 100, "price4": 105.00,
-      "qty5": 250, "price5": 99.00
+      "qty1": 19,      "price1": 120,
+      "qty2": 99,      "price2": 115.5,
+      "qty3": 249,     "price3": 110,
+      "qty4": 9999997, "price4": 104.95
     }
   }
 }
 ```
+
+**Reading the price tiers**
+
+- Each `qtyN` is the **highest** quantity at which `priceN` applies. The tier starts one above the previous tier's `qtyN` (the first tier starts at 1). In the example, 1–19 units cost 120, 20–99 cost 115.5, and so on.
+- `9999997` on the last tier means "and above".
+- Prices and `rrpPrice` are JSON numbers, so a whole amount arrives without decimals (`120`, not `120.00`).
+- You receive one `qtyN`/`priceN` pair per tier, up to five. Pairs past your last tier are absent, not `null`. A style with no price tiers for your account answers `"pricing": []` (an empty array, not an object). A price ladder with more than five tiers shows its first five, so its fifth `qtyN` is a real upper bound rather than `9999997`.
+
+> Long-standing behaviour: tiers have always been sent as upper bounds; the examples on this page previously showed lower bounds.
 
 ---
 
@@ -293,10 +324,10 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricingAndStock?styleCode=4
   "data": {
     "styleCode": "4171",
     "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "shortDescription": "Rainier Softshell Jacket",
     "rrpPrice": 129.9,
-    "pricing": { "qty1": 1, "price1": 120.00, "qty2": 10, "price2": 115.00 },
-    "stock": [ { "sku": "4171-BL.S", "locations": [ {"name":"QLD DC","stockLevel":"25"} ] } ]
+    "pricing": { "qty1": 99, "price1": 120, "qty2": 9999997, "price2": 115.5 },
+    "stock": [ { "sku": "4171-BL-S", "locations": [ {"name":"BNE","stockLevel":"120"}, {"name":"Total","stockLevel":"120"} ] } ]
   }
 }
 ```
@@ -480,23 +511,45 @@ All endpoints use common error shapes.
 **401 Unauthenticated**
 
 ```json
-{ "message": "Unauthenticated" }
+{ "message": "Unauthenticated." }
 ```
+
+> Long-standing behaviour: the message has always ended with a full stop; this page previously left it out.
 
 **403 Authorization error**
 
+When your API key does not carry access to these endpoints:
+
 ```json
-{ "message": "Unauthorized" }
+{ "message": "Invalid ability provided." }
 ```
+
+When your account does not have access to pricing (`/customer/stylePricing` and `/customer/stylePricingAndStock` only):
+
+```json
+{ "message": "You do not have access to the pricing API." }
+```
+
+> Long-standing behaviour: these are the bodies the API has always returned; this page previously showed `Unauthorized`.
 
 **422 Validation error**
 
+When a parameter is missing or invalid, `message` repeats the first error, followed by a count when there are more:
+
 ```json
 {
-  "message": "The given data was invalid.",
-  "errors": { "styleCode": ["The styleCode field is required."] }
+  "message": "The style code field is required.",
+  "errors": { "styleCode": ["The style code field is required."] }
 }
 ```
+
+When the SKU or style code you sent does not exist, or you sent a SKU where a style code is expected, the body carries only `message`:
+
+```json
+{ "message": "4171X is not a valid Style Code. Please check the Style Code and try again." }
+```
+
+> Long-standing behaviour: these are the bodies the API has always returned; this page previously showed a generic "The given data was invalid." message.
 
 ---
 
@@ -508,21 +561,6 @@ All endpoints use common error shapes.
   ```
 - **Pagination**: `/products` returns `currentPage`, `lastPage`, `perPage`, `total`.
 - **RRP vs customer pricing**: `rrpPrice` is included alongside per-customer tiered pricing in style calls.
-
----
-
-## Legacy SOAP → REST mapping (for reference)
-
-Use this if you’re migrating from the SOAP v2.1 documentation.
-
-| SOAP (v2.1)                                         | REST (this README)                               |
-| --------------------------------------------------- | ------------------------------------------------ |
-| Public Product List `epicentre_products.publiclist` | `GET /products`                                  |
-| Customer Specific Product Stock                     | `GET /customer/productStock` (per SKU)           |
-| Customer Specific Style Pricing                     | `GET /customer/stylePricing` (per style)         |
-| —                                                   | `GET /customer/styleStock` (style stock per SKU) |
-| —                                                   | `GET /customer/stylePricingAndStock` (combined)  |
-
 
 
 # Legend Life Decoration API Workflow Documentation
@@ -559,11 +597,16 @@ Get a list of decoration types (e.g., embroidery, printing) available for a spec
 **Required Parameter:**  
 - `sku` (string): The product SKU.
 
+**Optional Parameter:**  
+- `withPositions` (`true`, `false`, `1` or `0`): Include `decorationPositionCount`, the number of positions available for each decoration type. The count is included whenever the parameter is sent, whatever its value; leave it out to omit the count.
+
 **Example Request:**  
-`GET https://api.legendlife.com.au/v1/decorations/decorationTypes?sku=4007-BL.BOR-S.M`
+`GET https://api.legendlife.com.au/v1/decorations/decorationTypes?sku=4007-BL.BOR-S.M&withPositions=true`
 
 **Response:**  
-Returns an array of decoration type objects `{ id, name, decorationPositionCount }`.
+Returns an array of decoration type objects `{ id, name }`, or `{ id, name, decorationPositionCount }` when `withPositions` is sent.
+
+> Long-standing behaviour: `decorationPositionCount` has always depended on `withPositions`; this page previously showed it on every response.
 
 ---
 
@@ -680,7 +723,7 @@ Returns price per item, setup fees, minimum charge, and pricing quantity.
 ## **Authentication**
 
 All endpoints require authentication.  
-Get your API key from the [Legend Life API Data Feed](https://www.legendlife.com.au/integrations/index/) in your account.
+Get your API key from the [Data & Integration](https://www.legendlife.com.au/resources/business-support/data-integration) page under Resources › Business Support.
 
 ---
 
@@ -719,5 +762,5 @@ workflow and pull `GET /decorations/pricingGrid` once — see
 
 ## **References**
 
-- [Legend Life API Data Feed](https://www.legendlife.com.au/integrations/index/)
+- [Legend Life Data & Integration](https://www.legendlife.com.au/resources/business-support/data-integration)
 - [Legend Life Main Site](https://www.legendlife.com.au/)
