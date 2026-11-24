@@ -37,7 +37,7 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
     {
       "styleCode": "4171",
       "name": "Rainier Softshell Jacket",
-      "shortDescription": "...",
+      "shortDescription": "Rainier Softshell Jacket",
       "description": "...",
       "class": "APPAREL",
       "sizesAvailable": ["S","M","L"],
@@ -81,9 +81,9 @@ curl "https://api.legendlife.com.au/v1/products?page=1&pageSize=20"
       "url": "https://www.legendlife.com.au/...",
       "skus": [
         {
-          "sku": "4171-BL.S",
-          "name": "...",
-          "shortDescription": "...",
+          "sku": "4171-BL-S",
+          "name": "Rainier Softshell Jacket",
+          "shortDescription": "Rainier Softshell Jacket",
           "description": "...",
           "searchColours": ["Black"],
           "colours": ["Black"],
@@ -176,12 +176,12 @@ Fetch **stock at locations** for a **single SKU**.
 
 **Query params**
 
-- `sku` *(string, required)*: e.g. `4171-BL`
+- `sku` *(string, required)*: e.g. `4171-BL-S`
 
 **Example**
 
 ```bash
-curl "https://api.legendlife.com.au/v1/customer/productStock?sku=4171-BL"
+curl "https://api.legendlife.com.au/v1/customer/productStock?sku=4171-BL-S"
 ```
 
 **200 Response (shape)**
@@ -189,16 +189,24 @@ curl "https://api.legendlife.com.au/v1/customer/productStock?sku=4171-BL"
 ```json
 {
   "data": {
-    "sku": "4171-BL",
-    "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "sku": "4171-BL-S",
+    "name": "4171-BL-S - Rainier Softshell Jacket (Black) (S)",
+    "shortDescription": "4171-BL-S - Rainier Softshell Jacket (Black) (S)",
     "stock": [
-      { "location": "QLD DC", "qty": "120" },
-      { "location": "NSW DC", "qty": "45" }
+      { "location": "Stock Level - BNE", "qty": "120" },
+      { "location": "Stock Level - MEL", "qty": "45" },
+      { "location": "Stock Level - More Due", "qty": "Early December" },
+      { "location": "Stock Level - Total", "qty": "165" }
     ]
   }
 }
 ```
+
+**Reading the stock columns**
+
+- Every figure is a string. The columns differ from product to product: a product lists only the locations it is held at, so do not expect a fixed set.
+- `Total` is always present. A due column (`More Due` here, `More Stock Due` on the style endpoints below) appears on some products and carries a period such as `Early December`, or `-` when nothing is due.
+- On the style endpoints the same columns arrive as `name` / `stockLevel` without the `Stock Level - ` prefix, and `stockLevel` can be `null`.
 
 ---
 
@@ -223,16 +231,26 @@ curl "https://api.legendlife.com.au/v1/customer/styleStock?styleCode=4171"
   "data": {
     "styleCode": "4171",
     "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "shortDescription": "Rainier Softshell Jacket",
     "rrpPrice": 129.9,
     "stock": [
       {
-        "sku": "4171-BL.S",
-        "locations": [ {"name": "QLD DC", "stockLevel": "25"} ]
+        "sku": "4171-BL-S",
+        "locations": [
+          {"name": "BNE", "stockLevel": "120"},
+          {"name": "MEL", "stockLevel": "45"},
+          {"name": "More Stock Due", "stockLevel": "Early December"},
+          {"name": "Total", "stockLevel": "165"}
+        ]
       },
       {
-        "sku": "4171-BL.M",
-        "locations": [ {"name": "QLD DC", "stockLevel": "30"} ]
+        "sku": "4171-BL-M",
+        "locations": [
+          {"name": "BNE", "stockLevel": "30"},
+          {"name": "MEL", "stockLevel": "0"},
+          {"name": "More Stock Due", "stockLevel": "-"},
+          {"name": "Total", "stockLevel": "30"}
+        ]
       }
     ]
   }
@@ -262,14 +280,13 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricing?styleCode=4171"
   "data": {
     "styleCode": "4171",
     "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "shortDescription": "Rainier Softshell Jacket",
     "rrpPrice": 129.9,
     "pricing": {
-      "qty1": 9,       "price1": 120.00,
-      "qty2": 49,      "price2": 115.00,
-      "qty3": 99,      "price3": 110.00,
-      "qty4": 249,     "price4": 105.00,
-      "qty5": 9999997, "price5": 99.00
+      "qty1": 19,      "price1": 120,
+      "qty2": 99,      "price2": 115.5,
+      "qty3": 249,     "price3": 110,
+      "qty4": 9999997, "price4": 104.95
     }
   }
 }
@@ -277,9 +294,10 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricing?styleCode=4171"
 
 **Reading the price tiers**
 
-- Each `qtyN` is the **highest** quantity at which `priceN` applies. The tier starts one above the previous tier's `qtyN` (the first tier starts at 1). In the example, 1–9 units cost 120.00, 10–49 cost 115.00, and so on.
+- Each `qtyN` is the **highest** quantity at which `priceN` applies. The tier starts one above the previous tier's `qtyN` (the first tier starts at 1). In the example, 1–19 units cost 120, 20–99 cost 115.5, and so on.
 - `9999997` on the last tier means "and above".
-- You receive one `qtyN`/`priceN` pair per tier, up to five. Pairs past your last tier are absent, not `null`. A price ladder with more than five tiers shows its first five, so its fifth `qtyN` is a real upper bound rather than `9999997`.
+- Prices and `rrpPrice` are JSON numbers, so a whole amount arrives without decimals (`120`, not `120.00`).
+- You receive one `qtyN`/`priceN` pair per tier, up to five. Pairs past your last tier are absent, not `null`. A style with no price tiers for your account answers `"pricing": []` (an empty array, not an object). A price ladder with more than five tiers shows its first five, so its fifth `qtyN` is a real upper bound rather than `9999997`.
 
 > Long-standing behaviour: tiers have always been sent as upper bounds; the examples on this page previously showed lower bounds.
 
@@ -306,10 +324,10 @@ curl "https://api.legendlife.com.au/v1/customer/stylePricingAndStock?styleCode=4
   "data": {
     "styleCode": "4171",
     "name": "Rainier Softshell Jacket",
-    "shortDescription": "...",
+    "shortDescription": "Rainier Softshell Jacket",
     "rrpPrice": 129.9,
-    "pricing": { "qty1": 9, "price1": 120.00, "qty2": 9999997, "price2": 115.00 },
-    "stock": [ { "sku": "4171-BL.S", "locations": [ {"name":"QLD DC","stockLevel":"25"} ] } ]
+    "pricing": { "qty1": 99, "price1": 120, "qty2": 9999997, "price2": 115.5 },
+    "stock": [ { "sku": "4171-BL-S", "locations": [ {"name":"BNE","stockLevel":"120"}, {"name":"Total","stockLevel":"120"} ] } ]
   }
 }
 ```
